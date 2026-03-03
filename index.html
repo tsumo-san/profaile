@@ -2,145 +2,108 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>竜王戦風RPG</title>
+<title>Simple Aim Trainer</title>
 <style>
 body{
+    margin:0;
     background:black;
     color:white;
-    font-family:monospace;
+    font-family:sans-serif;
     text-align:center;
-    padding-top:30px;
+    overflow:hidden;
 }
-.box{
-    border:3px solid white;
-    width:400px;
-    margin:20px auto;
-    padding:20px;
+
+#game{
+    position:relative;
+    width:100vw;
+    height:90vh;
+    cursor:crosshair;
 }
-button{
-    margin:5px;
-    padding:8px 15px;
-    font-size:14px;
-    cursor:pointer;
+
+.target{
+    position:absolute;
+    width:50px;
+    height:50px;
+    background:red;
+    border-radius:50%;
 }
-.bar{
-    height:15px;
-    background:green;
-}
-.mana{
-    background:blue;
+
+#ui{
+    height:10vh;
+    display:flex;
+    justify-content:space-around;
+    align-items:center;
+    font-size:18px;
 }
 </style>
 </head>
 <body>
 
-<h1>⚔ 竜王戦 ⚔</h1>
+<h1>🎯 AIM TRAINER</h1>
 
-<div class="box">
-    <p>勇者 HP</p>
-    <div style="background:white;"><div id="playerBar" class="bar"></div></div>
+<div id="game"></div>
 
-    <p>勇者 MP</p>
-    <div style="background:white;"><div id="mpBar" class="bar mana"></div></div>
-
-    <hr>
-
-    <p>👑 竜王 HP</p>
-    <div style="background:white;"><div id="enemyBar" class="bar"></div></div>
+<div id="ui">
+    <div>時間: <span id="time">30</span></div>
+    <div>スコア: <span id="score">0</span></div>
+    <div>命中率: <span id="accuracy">0%</span></div>
 </div>
 
-<button onclick="attack()">⚔ 攻撃</button>
-<button onclick="skill()">🔥 ギガスラッシュ (MP20)</button>
-<button onclick="heal()">💊 回復 (MP15)</button>
-
-<p id="log"></p>
-
 <script>
-let playerHP = 120;
-let playerMP = 60;
-let enemyHP = 200;
+let score = 0;
+let shots = 0;
+let hits = 0;
+let time = 30;
+let gameArea = document.getElementById("game");
+let timer;
 
-function update(){
-    document.getElementById("playerBar").style.width = playerHP + "%";
-    document.getElementById("mpBar").style.width = playerMP + "%";
-    document.getElementById("enemyBar").style.width = enemyHP/2 + "%";
-}
+function spawnTarget(){
+    let target = document.createElement("div");
+    target.classList.add("target");
 
-function enemyTurn(){
-    if(enemyHP <= 0) return;
+    let x = Math.random() * (window.innerWidth - 60);
+    let y = Math.random() * (window.innerHeight * 0.9 - 60);
 
-    let action = Math.floor(Math.random()*3);
+    target.style.left = x + "px";
+    target.style.top = y + "px";
 
-    if(action === 0){
-        let dmg = Math.floor(Math.random()*20)+15;
-        playerHP -= dmg;
-        log("竜王のこうげき！ " + dmg + " ダメージ！");
-    } else if(action === 1){
-        let dmg = Math.floor(Math.random()*30)+25;
-        playerHP -= dmg;
-        log("🔥 竜王の炎！！ " + dmg + " ダメージ！");
-    } else {
-        enemyHP += 20;
-        if(enemyHP > 200) enemyHP = 200;
-        log("竜王は力をためて回復した！");
+    target.onclick = function(e){
+        e.stopPropagation();
+        hits++;
+        score++;
+        updateUI();
+        target.remove();
+        spawnTarget();
     }
 
-    if(playerHP <= 0){
-        alert("全滅した… 世界は闇に包まれた。");
-        location.reload();
-    }
-
-    update();
+    gameArea.appendChild(target);
 }
 
-function attack(){
-    let dmg = Math.floor(Math.random()*20)+10;
-    enemyHP -= dmg;
-    log("勇者の攻撃！ " + dmg + " ダメージ！");
-    checkWin();
-    setTimeout(enemyTurn,1000);
+gameArea.addEventListener("click", function(){
+    shots++;
+    updateUI();
+});
+
+function updateUI(){
+    document.getElementById("score").textContent = score;
+    let acc = shots === 0 ? 0 : Math.floor((hits / shots) * 100);
+    document.getElementById("accuracy").textContent = acc + "%";
 }
 
-function skill(){
-    if(playerMP < 20){
-        log("MPが足りない！");
-        return;
-    }
-    playerMP -= 20;
-    let dmg = Math.floor(Math.random()*40)+30;
-    enemyHP -= dmg;
-    log("🔥 ギガスラッシュ！！ " + dmg + " ダメージ！");
-    checkWin();
-    setTimeout(enemyTurn,1000);
+function startGame(){
+    spawnTarget();
+    timer = setInterval(function(){
+        time--;
+        document.getElementById("time").textContent = time;
+        if(time <= 0){
+            clearInterval(timer);
+            alert("終了！ スコア: " + score);
+            location.reload();
+        }
+    },1000);
 }
 
-function heal(){
-    if(playerMP < 15){
-        log("MPが足りない！");
-        return;
-    }
-    playerMP -= 15;
-    let heal = Math.floor(Math.random()*30)+20;
-    playerHP += heal;
-    if(playerHP > 120) playerHP = 120;
-    log("勇者は回復した！ +" + heal);
-    update();
-    setTimeout(enemyTurn,1000);
-}
-
-function checkWin(){
-    if(enemyHP <= 0){
-        alert("竜王を倒した！世界に平和が戻った！");
-        location.reload();
-    }
-    update();
-}
-
-function log(text){
-    document.getElementById("log").textContent = text;
-}
-
-update();
+startGame();
 </script>
 
 </body>
