@@ -1,109 +1,79 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html>
 <head>
 <meta charset="UTF-8">
-<title>Simple Aim Trainer</title>
+<title>3D Aim Trainer</title>
 <style>
-body{
-    margin:0;
-    background:black;
+body { margin:0; overflow:hidden; background:black; }
+#ui{
+    position:fixed;
+    top:10px;
+    left:10px;
     color:white;
     font-family:sans-serif;
-    text-align:center;
-    overflow:hidden;
-}
-
-#game{
-    position:relative;
-    width:100vw;
-    height:90vh;
-    cursor:crosshair;
-}
-
-.target{
-    position:absolute;
-    width:50px;
-    height:50px;
-    background:red;
-    border-radius:50%;
-}
-
-#ui{
-    height:10vh;
-    display:flex;
-    justify-content:space-around;
-    align-items:center;
-    font-size:18px;
 }
 </style>
 </head>
 <body>
 
-<h1>🎯 AIM TRAINER</h1>
-
-<div id="game"></div>
-
 <div id="ui">
-    <div>時間: <span id="time">30</span></div>
-    <div>スコア: <span id="score">0</span></div>
-    <div>命中率: <span id="accuracy">0%</span></div>
+    スコア: <span id="score">0</span><br>
+    クリックで射撃
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
 <script>
+let scene = new THREE.Scene();
+let camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+let renderer = new THREE.WebGLRenderer();
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+camera.position.z = 5;
+
 let score = 0;
-let shots = 0;
-let hits = 0;
-let time = 30;
-let gameArea = document.getElementById("game");
-let timer;
+let raycaster = new THREE.Raycaster();
+let mouse = new THREE.Vector2();
+
+let targets = [];
 
 function spawnTarget(){
-    let target = document.createElement("div");
-    target.classList.add("target");
+    let geometry = new THREE.SphereGeometry(0.5, 32, 32);
+    let material = new THREE.MeshBasicMaterial({color: 0xff0000});
+    let sphere = new THREE.Mesh(geometry, material);
 
-    let x = Math.random() * (window.innerWidth - 60);
-    let y = Math.random() * (window.innerHeight * 0.9 - 60);
+    sphere.position.x = (Math.random() - 0.5) * 8;
+    sphere.position.y = (Math.random() - 0.5) * 5;
+    sphere.position.z = - (Math.random() * 5);
 
-    target.style.left = x + "px";
-    target.style.top = y + "px";
+    scene.add(sphere);
+    targets.push(sphere);
+}
 
-    target.onclick = function(e){
-        e.stopPropagation();
-        hits++;
+spawnTarget();
+
+window.addEventListener("click", function(event){
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
+
+    raycaster.setFromCamera(mouse, camera);
+    let intersects = raycaster.intersectObjects(targets);
+
+    if(intersects.length > 0){
+        scene.remove(intersects[0].object);
+        targets.splice(targets.indexOf(intersects[0].object),1);
         score++;
-        updateUI();
-        target.remove();
+        document.getElementById("score").textContent = score;
         spawnTarget();
     }
-
-    gameArea.appendChild(target);
-}
-
-gameArea.addEventListener("click", function(){
-    shots++;
-    updateUI();
 });
 
-function updateUI(){
-    document.getElementById("score").textContent = score;
-    let acc = shots === 0 ? 0 : Math.floor((hits / shots) * 100);
-    document.getElementById("accuracy").textContent = acc + "%";
+function animate(){
+    requestAnimationFrame(animate);
+    renderer.render(scene, camera);
 }
-
-function startGame(){
-    spawnTarget();
-    timer = setInterval(function(){
-        time--;
-        document.getElementById("time").textContent = time;
-        if(time <= 0){
-            clearInterval(timer);
-            alert("終了！ スコア: " + score);
-            location.reload();
-        }
-    },1000);
-}
-
-startGame();
+animate();
 </script>
 
 </body>
