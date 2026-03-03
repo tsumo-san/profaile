@@ -1,93 +1,146 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>マイ・ハクスラRPG</title>
-    <style>
-        /* 見た目を整えるデザイン設定 */
-        body { background-color: #1a1a1a; color: #eee; font-family: sans-serif; display: flex; justify-content: center; padding: 20px; }
-        #game-box { width: 100%; max-width: 400px; border: 2px solid #444; padding: 20px; background: #222; border-radius: 10px; text-align: center; }
-        .status { background: #000; padding: 10px; margin-bottom: 20px; border-radius: 5px; font-weight: bold; }
-        .enemy-area { background: #4d0000; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
-        button { width: 100%; padding: 15px; font-size: 1.2rem; background: #e74c3c; color: #fff; border: none; border-radius: 5px; cursor: pointer; }
-        button:active { transform: scale(0.98); background: #c0392b; }
-        #log { height: 150px; overflow-y: auto; background: #111; padding: 10px; font-size: 0.8rem; text-align: left; border-top: 1px solid #444; margin-top: 15px; }
-        .rare-log { color: #f1c40f; font-weight: bold; }
-    </style>
+<meta charset="UTF-8">
+<title>竜王戦風RPG</title>
+<style>
+body{
+    background:black;
+    color:white;
+    font-family:monospace;
+    text-align:center;
+    padding-top:30px;
+}
+.box{
+    border:3px solid white;
+    width:400px;
+    margin:20px auto;
+    padding:20px;
+}
+button{
+    margin:5px;
+    padding:8px 15px;
+    font-size:14px;
+    cursor:pointer;
+}
+.bar{
+    height:15px;
+    background:green;
+}
+.mana{
+    background:blue;
+}
+</style>
 </head>
 <body>
 
-<div id="game-box">
-    <h2>HACK & SLASH</h2>
+<h1>⚔ 竜王戦 ⚔</h1>
 
-    <div class="status">
-        攻撃力: <span id="atk-val">10</span> | 討伐: <span id="kill-val">0</span>
-    </div>
+<div class="box">
+    <p>勇者 HP</p>
+    <div style="background:white;"><div id="playerBar" class="bar"></div></div>
 
-    <div class="enemy-area">
-        <h3 id="e-name">スライム</h3>
-        HP: <span id="e-hp">30</span> / <span id="e-max">30</span>
-    </div>
+    <p>勇者 MP</p>
+    <div style="background:white;"><div id="mpBar" class="bar mana"></div></div>
 
-    <button onclick="handleAttack()">攻撃する！</button>
+    <hr>
 
-    <div id="log">
-        <div>冒険が始まった...</div>
-    </div>
+    <p>👑 竜王 HP</p>
+    <div style="background:white;"><div id="enemyBar" class="bar"></div></div>
 </div>
 
+<button onclick="attack()">⚔ 攻撃</button>
+<button onclick="skill()">🔥 ギガスラッシュ (MP20)</button>
+<button onclick="heal()">💊 回復 (MP15)</button>
+
+<p id="log"></p>
+
 <script>
-    // ゲームの状態を管理する変数
-    let playerAtk = 10;
-    let kills = 0;
-    let enemy = { name: "スライム", hp: 30, maxHp: 30 };
+let playerHP = 120;
+let playerMP = 60;
+let enemyHP = 200;
 
-    // ランダムな武器名を作るためのリスト
-    const adj = ["錆びた", "鋭い", "名工の", "伝説の", "神殺しの"];
-    const wpn = ["剣", "斧", "槍", "刀", "メイス"];
+function update(){
+    document.getElementById("playerBar").style.width = playerHP + "%";
+    document.getElementById("mpBar").style.width = playerMP + "%";
+    document.getElementById("enemyBar").style.width = enemyHP/2 + "%";
+}
 
-    // 攻撃処理
-    function handleAttack() {
-        enemy.hp -= playerAtk;
-        addLog(`敵に ${playerAtk} のダメージ！`);
+function enemyTurn(){
+    if(enemyHP <= 0) return;
 
-        if (enemy.hp <= 0) {
-            kills++;
-            addLog(`★${enemy.name}を倒した！`, true);
-            
-            // 武器ドロップと攻撃力アップ
-            const lootName = adj[Math.floor(Math.random() * adj.length)] + wpn[Math.floor(Math.random() * wpn.length)];
-            const powerUp = Math.floor(Math.random() * (kills + 5)) + 1;
-            playerAtk += powerUp;
-            addLog(`[${lootName}]を入手！ 攻撃力が ${powerUp} 上がった！`, true);
+    let action = Math.floor(Math.random()*3);
 
-            // 次の敵の設定
-            enemy.maxHp = Math.floor(enemy.maxHp * 1.3);
-            enemy.hp = enemy.maxHp;
-            const names = ["オーク", "ゴブリン", "死霊", "ドラゴン"];
-            enemy.name = names[Math.floor(Math.random() * names.length)];
-        }
-        updateUI();
+    if(action === 0){
+        let dmg = Math.floor(Math.random()*20)+15;
+        playerHP -= dmg;
+        log("竜王のこうげき！ " + dmg + " ダメージ！");
+    } else if(action === 1){
+        let dmg = Math.floor(Math.random()*30)+25;
+        playerHP -= dmg;
+        log("🔥 竜王の炎！！ " + dmg + " ダメージ！");
+    } else {
+        enemyHP += 20;
+        if(enemyHP > 200) enemyHP = 200;
+        log("竜王は力をためて回復した！");
     }
 
-    // 画面の数値を更新
-    function updateUI() {
-        document.getElementById("atk-val").innerText = playerAtk;
-        document.getElementById("kill-val").innerText = kills;
-        document.getElementById("e-hp").innerText = enemy.hp;
-        document.getElementById("e-max").innerText = enemy.maxHp;
-        document.getElementById("e-name").innerText = enemy.name;
+    if(playerHP <= 0){
+        alert("全滅した… 世界は闇に包まれた。");
+        location.reload();
     }
 
-    // ログを追加
-    function addLog(msg, isRare = false) {
-        const logBox = document.getElementById("log");
-        const div = document.createElement("div");
-        if (isRare) div.className = "rare-log";
-        div.innerText = msg;
-        logBox.prepend(div);
+    update();
+}
+
+function attack(){
+    let dmg = Math.floor(Math.random()*20)+10;
+    enemyHP -= dmg;
+    log("勇者の攻撃！ " + dmg + " ダメージ！");
+    checkWin();
+    setTimeout(enemyTurn,1000);
+}
+
+function skill(){
+    if(playerMP < 20){
+        log("MPが足りない！");
+        return;
     }
+    playerMP -= 20;
+    let dmg = Math.floor(Math.random()*40)+30;
+    enemyHP -= dmg;
+    log("🔥 ギガスラッシュ！！ " + dmg + " ダメージ！");
+    checkWin();
+    setTimeout(enemyTurn,1000);
+}
+
+function heal(){
+    if(playerMP < 15){
+        log("MPが足りない！");
+        return;
+    }
+    playerMP -= 15;
+    let heal = Math.floor(Math.random()*30)+20;
+    playerHP += heal;
+    if(playerHP > 120) playerHP = 120;
+    log("勇者は回復した！ +" + heal);
+    update();
+    setTimeout(enemyTurn,1000);
+}
+
+function checkWin(){
+    if(enemyHP <= 0){
+        alert("竜王を倒した！世界に平和が戻った！");
+        location.reload();
+    }
+    update();
+}
+
+function log(text){
+    document.getElementById("log").textContent = text;
+}
+
+update();
 </script>
 
 </body>
