@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>3D FPS Aim Trainer</title>
+<title>40s FPS Aim Trainer</title>
 <style>
 body { margin:0; overflow:hidden; background:black; }
 #ui{
@@ -16,124 +16,156 @@ body { margin:0; overflow:hidden; background:black; }
     position:fixed;
     top:50%;
     left:50%;
-    width:20px;
-    height:20px;
-    margin-left:-10px;
-    margin-top:-10px;
+    width:15px;
+    height:15px;
+    margin-left:-7px;
+    margin-top:-7px;
     border:2px solid white;
     border-radius:50%;
 }
+input{ width:120px; }
 </style>
 </head>
 <body>
 
-<div id="ui">スコア: <span id="score">0</span></div>
+<div id="ui">
+    スコア: <span id="score">0</span><br>
+    FPS: <span id="fps">0</span><br>
+    残り時間: <span id="time">40</span><br>
+    感度: <input type="range" id="sens" min="0.001" max="0.01" step="0.001" value="0.002">
+</div>
 <div id="crosshair"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
 <script>
 let scene = new THREE.Scene();
-scene.background = new THREE.Color(0x202533);
-
-// 背景ライト
-let light = new THREE.DirectionalLight(0xffffff,1);
-light.position.set(5,10,7);
-scene.add(light);
+scene.background = new THREE.Color(0x1e1e2e);
 
 let camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-let renderer = new THREE.WebGLRenderer();
+camera.position.y = 1.5;
+
+let renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
 document.body.appendChild(renderer.domElement);
 
-// 地面
-let groundGeo = new THREE.PlaneGeometry(100,100);
-let groundMat = new THREE.MeshLambertMaterial({color:0x444444});
-let ground = new THREE.Mesh(groundGeo, groundMat);
+let light = new THREE.DirectionalLight(0xffffff,1);
+light.position.set(5,10,5);
+light.castShadow = true;
+scene.add(light);
+scene.add(new THREE.AmbientLight(0x404040));
+
+let ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(200,200),
+    new THREE.MeshStandardMaterial({color:0x333333})
+);
 ground.rotation.x = -Math.PI/2;
-ground.position.y = -2;
+ground.receiveShadow = true;
 scene.add(ground);
 
-// ターゲット
-let targets = [];
+let targets=[];
 function spawnTarget(){
-    let geo = new THREE.SphereGeometry(0.5,32,32);
-    let mat = new THREE.MeshLambertMaterial({color:0xff0000});
-    let sphere = new THREE.Mesh(geo,mat);
-
-    sphere.position.set(
-        (Math.random()-0.5)*20,
-        Math.random()*5,
-        -Math.random()*20
+    if(!gameActive) return;
+    let mesh = new THREE.Mesh(
+        new THREE.SphereGeometry(0.5,32,32),
+        new THREE.MeshStandardMaterial({color:0xff4444})
     );
-    scene.add(sphere);
-    targets.push(sphere);
+    mesh.position.set(
+        (Math.random()-0.5)*30,
+        Math.random()*5+1,
+        -Math.random()*30
+    );
+    mesh.castShadow = true;
+    scene.add(mesh);
+    targets.push(mesh);
 }
 spawnTarget();
 
-// 銃（簡易モデル）
 let gun = new THREE.Group();
-
 let body = new THREE.Mesh(
-    new THREE.BoxGeometry(0.5,0.3,1),
-    new THREE.MeshLambertMaterial({color:0x222222})
+    new THREE.BoxGeometry(0.4,0.25,1),
+    new THREE.MeshStandardMaterial({color:0x111111})
 );
-body.position.set(0,-0.5,-1);
+body.position.set(0.3,-0.3,-1);
 gun.add(body);
-
-let barrel = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.05,0.05,0.8),
-    new THREE.MeshLambertMaterial({color:0x111111})
-);
-barrel.rotation.x = Math.PI/2;
-barrel.position.set(0,-0.5,-1.6);
-gun.add(barrel);
-
 camera.add(gun);
 scene.add(camera);
 
-// FPS視点操作
-let pitch = 0;
-let yaw = 0;
+let pitch=0, yaw=0;
+let sensitivity = 0.002;
 
-document.body.addEventListener("click", ()=>{
+document.getElementById("sens").addEventListener("input",e=>{
+    sensitivity = parseFloat(e.target.value);
+});
+
+document.body.addEventListener("click",()=>{
     document.body.requestPointerLock();
 });
 
-document.addEventListener("mousemove",(e)=>{
-    if(document.pointerLockElement === document.body){
-        yaw -= e.movementX * 0.002;
-        pitch -= e.movementY * 0.002;
+document.addEventListener("mousemove",e=>{
+    if(document.pointerLockElement===document.body && gameActive){
+        yaw -= e.movementX * sensitivity;
+        pitch -= e.movementY * sensitivity;
         pitch = Math.max(-Math.PI/2, Math.min(Math.PI/2, pitch));
-
-        camera.rotation.set(pitch, yaw, 0);
+        camera.rotation.set(pitch,yaw,0);
     }
 });
 
-// 射撃判定
 let raycaster = new THREE.Raycaster();
-let score = 0;
+let score=0;
+let gameActive = true;
 
-window.addEventListener("mousedown", ()=>{
-    raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
+window.addEventListener("mousedown",()=>{
+    if(!gameActive) return;
+    raycaster.setFromCamera(new THREE.Vector2(0,0),camera);
     let hit = raycaster.intersectObjects(targets);
-
-    if(hit.length > 0){
+    if(hit.length>0){
         scene.remove(hit[0].object);
         targets.splice(targets.indexOf(hit[0].object),1);
         score++;
-        document.getElementById("score").textContent = score;
+        document.getElementById("score").textContent=score;
         spawnTarget();
     }
 });
 
-camera.position.y = 0;
+// FPS
+let lastTime = performance.now();
+let frames = 0;
 
 function animate(){
     requestAnimationFrame(animate);
+    frames++;
+    let now = performance.now();
+    if(now - lastTime >= 1000){
+        document.getElementById("fps").textContent = frames;
+        frames = 0;
+        lastTime = now;
+    }
     renderer.render(scene,camera);
 }
 animate();
+
+// 🔥 40秒タイマー
+let timeLeft = 40;
+let timer = setInterval(()=>{
+    if(!gameActive) return;
+    timeLeft--;
+    document.getElementById("time").textContent = timeLeft;
+    if(timeLeft <= 0){
+        gameActive = false;
+        clearInterval(timer);
+        document.exitPointerLock();
+        alert("終了！最終スコア: " + score);
+    }
+},1000);
+
+window.addEventListener("resize",()=>{
+    camera.aspect = window.innerWidth/window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth,window.innerHeight);
+});
 </script>
 
 </body>
