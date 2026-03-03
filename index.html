@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>3D Aim Trainer</title>
+<title>3D FPS Aim Trainer</title>
 <style>
 body { margin:0; overflow:hidden; background:black; }
 #ui{
@@ -12,66 +12,126 @@ body { margin:0; overflow:hidden; background:black; }
     color:white;
     font-family:sans-serif;
 }
+#crosshair{
+    position:fixed;
+    top:50%;
+    left:50%;
+    width:20px;
+    height:20px;
+    margin-left:-10px;
+    margin-top:-10px;
+    border:2px solid white;
+    border-radius:50%;
+}
 </style>
 </head>
 <body>
 
-<div id="ui">
-    スコア: <span id="score">0</span><br>
-    クリックで射撃
-</div>
+<div id="ui">スコア: <span id="score">0</span></div>
+<div id="crosshair"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
 <script>
 let scene = new THREE.Scene();
+scene.background = new THREE.Color(0x202533);
+
+// 背景ライト
+let light = new THREE.DirectionalLight(0xffffff,1);
+light.position.set(5,10,7);
+scene.add(light);
+
 let camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
 let renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-camera.position.z = 5;
+// 地面
+let groundGeo = new THREE.PlaneGeometry(100,100);
+let groundMat = new THREE.MeshLambertMaterial({color:0x444444});
+let ground = new THREE.Mesh(groundGeo, groundMat);
+ground.rotation.x = -Math.PI/2;
+ground.position.y = -2;
+scene.add(ground);
 
-let score = 0;
-let raycaster = new THREE.Raycaster();
-let mouse = new THREE.Vector2();
-
+// ターゲット
 let targets = [];
-
 function spawnTarget(){
-    let geometry = new THREE.SphereGeometry(0.5, 32, 32);
-    let material = new THREE.MeshBasicMaterial({color: 0xff0000});
-    let sphere = new THREE.Mesh(geometry, material);
+    let geo = new THREE.SphereGeometry(0.5,32,32);
+    let mat = new THREE.MeshLambertMaterial({color:0xff0000});
+    let sphere = new THREE.Mesh(geo,mat);
 
-    sphere.position.x = (Math.random() - 0.5) * 8;
-    sphere.position.y = (Math.random() - 0.5) * 5;
-    sphere.position.z = - (Math.random() * 5);
-
+    sphere.position.set(
+        (Math.random()-0.5)*20,
+        Math.random()*5,
+        -Math.random()*20
+    );
     scene.add(sphere);
     targets.push(sphere);
 }
-
 spawnTarget();
 
-window.addEventListener("click", function(event){
-    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-    mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
+// 銃（簡易モデル）
+let gun = new THREE.Group();
 
-    raycaster.setFromCamera(mouse, camera);
-    let intersects = raycaster.intersectObjects(targets);
+let body = new THREE.Mesh(
+    new THREE.BoxGeometry(0.5,0.3,1),
+    new THREE.MeshLambertMaterial({color:0x222222})
+);
+body.position.set(0,-0.5,-1);
+gun.add(body);
 
-    if(intersects.length > 0){
-        scene.remove(intersects[0].object);
-        targets.splice(targets.indexOf(intersects[0].object),1);
+let barrel = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.05,0.05,0.8),
+    new THREE.MeshLambertMaterial({color:0x111111})
+);
+barrel.rotation.x = Math.PI/2;
+barrel.position.set(0,-0.5,-1.6);
+gun.add(barrel);
+
+camera.add(gun);
+scene.add(camera);
+
+// FPS視点操作
+let pitch = 0;
+let yaw = 0;
+
+document.body.addEventListener("click", ()=>{
+    document.body.requestPointerLock();
+});
+
+document.addEventListener("mousemove",(e)=>{
+    if(document.pointerLockElement === document.body){
+        yaw -= e.movementX * 0.002;
+        pitch -= e.movementY * 0.002;
+        pitch = Math.max(-Math.PI/2, Math.min(Math.PI/2, pitch));
+
+        camera.rotation.set(pitch, yaw, 0);
+    }
+});
+
+// 射撃判定
+let raycaster = new THREE.Raycaster();
+let score = 0;
+
+window.addEventListener("mousedown", ()=>{
+    raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
+    let hit = raycaster.intersectObjects(targets);
+
+    if(hit.length > 0){
+        scene.remove(hit[0].object);
+        targets.splice(targets.indexOf(hit[0].object),1);
         score++;
         document.getElementById("score").textContent = score;
         spawnTarget();
     }
 });
 
+camera.position.y = 0;
+
 function animate(){
     requestAnimationFrame(animate);
-    renderer.render(scene, camera);
+    renderer.render(scene,camera);
 }
 animate();
 </script>
