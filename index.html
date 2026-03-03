@@ -1,119 +1,94 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tsukamoto | Profile</title>
-
-<style>
-body{
-    margin:0;
-    padding:0;
-    font-family: 'Segoe UI', sans-serif;
-    background: linear-gradient(135deg,#141E30,#243B55);
-    color:white;
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    height:100vh;
-}
-
-.card{
-    background: rgba(0,0,0,0.65);
-    padding:40px;
-    border-radius:25px;
-    text-align:center;
-    backdrop-filter: blur(12px);
-    box-shadow: 0 0 40px rgba(0,0,0,0.8);
-    width:380px;
-    transition:0.4s;
-}
-
-.card:hover{
-    transform: translateY(-10px);
-}
-
-h1{
-    font-size:2.5em;
-    letter-spacing:3px;
-    margin-bottom:5px;
-}
-
-.subtitle{
-    font-size:1.1em;
-    opacity:0.8;
-    margin-bottom:15px;
-}
-
-.line{
-    width:70px;
-    height:3px;
-    background:#ffcc70;
-    margin:15px auto;
-    border-radius:5px;
-}
-
-p{
-    font-size:1em;
-    line-height:1.7em;
-}
-
-.hobby{
-    margin-top:15px;
-    font-size:1em;
-}
-
-.hobby span{
-    display:inline-block;
-    margin:5px 10px;
-    padding:5px 12px;
-    border-radius:20px;
-    background:#ffcc70;
-    color:black;
-    font-weight:bold;
-}
-
-button{
-    margin-top:20px;
-    padding:10px 20px;
-    border:none;
-    border-radius:30px;
-    background:#ffcc70;
-    color:black;
-    font-weight:bold;
-    cursor:pointer;
-    transition:0.3s;
-}
-
-button:hover{
-    background:white;
-    transform:scale(1.1);
-}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>マイ・ハクスラRPG</title>
+    <style>
+        /* 見た目を整えるデザイン設定 */
+        body { background-color: #1a1a1a; color: #eee; font-family: sans-serif; display: flex; justify-content: center; padding: 20px; }
+        #game-box { width: 100%; max-width: 400px; border: 2px solid #444; padding: 20px; background: #222; border-radius: 10px; text-align: center; }
+        .status { background: #000; padding: 10px; margin-bottom: 20px; border-radius: 5px; font-weight: bold; }
+        .enemy-area { background: #4d0000; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        button { width: 100%; padding: 15px; font-size: 1.2rem; background: #e74c3c; color: #fff; border: none; border-radius: 5px; cursor: pointer; }
+        button:active { transform: scale(0.98); background: #c0392b; }
+        #log { height: 150px; overflow-y: auto; background: #111; padding: 10px; font-size: 0.8rem; text-align: left; border-top: 1px solid #444; margin-top: 15px; }
+        .rare-log { color: #f1c40f; font-weight: bold; }
+    </style>
 </head>
-
 <body>
 
-<div class="card">
-    <h1>TSUKAMOTO</h1>
-    <div class="subtitle">Creative Student</div>
-    <div class="line"></div>
+<div id="game-box">
+    <h2>HACK & SLASH</h2>
 
-    <p>
-        はじめまして、塚本です。<br>
-        料理と香水が好きで、<br>
-        香りや味のバランスを楽しんでいます。
-    </p>
-
-    <div class="hobby">
-        <span>🍳 Cooking</span>
-        <span>🌿 Fragrance</span>
+    <div class="status">
+        攻撃力: <span id="atk-val">10</span> | 討伐: <span id="kill-val">0</span>
     </div>
 
-    <button onclick="alert('香りも味も大切にしています。')">
-        My Style
-    </button>
+    <div class="enemy-area">
+        <h3 id="e-name">スライム</h3>
+        HP: <span id="e-hp">30</span> / <span id="e-max">30</span>
+    </div>
+
+    <button onclick="handleAttack()">攻撃する！</button>
+
+    <div id="log">
+        <div>冒険が始まった...</div>
+    </div>
 </div>
+
+<script>
+    // ゲームの状態を管理する変数
+    let playerAtk = 10;
+    let kills = 0;
+    let enemy = { name: "スライム", hp: 30, maxHp: 30 };
+
+    // ランダムな武器名を作るためのリスト
+    const adj = ["錆びた", "鋭い", "名工の", "伝説の", "神殺しの"];
+    const wpn = ["剣", "斧", "槍", "刀", "メイス"];
+
+    // 攻撃処理
+    function handleAttack() {
+        enemy.hp -= playerAtk;
+        addLog(`敵に ${playerAtk} のダメージ！`);
+
+        if (enemy.hp <= 0) {
+            kills++;
+            addLog(`★${enemy.name}を倒した！`, true);
+            
+            // 武器ドロップと攻撃力アップ
+            const lootName = adj[Math.floor(Math.random() * adj.length)] + wpn[Math.floor(Math.random() * wpn.length)];
+            const powerUp = Math.floor(Math.random() * (kills + 5)) + 1;
+            playerAtk += powerUp;
+            addLog(`[${lootName}]を入手！ 攻撃力が ${powerUp} 上がった！`, true);
+
+            // 次の敵の設定
+            enemy.maxHp = Math.floor(enemy.maxHp * 1.3);
+            enemy.hp = enemy.maxHp;
+            const names = ["オーク", "ゴブリン", "死霊", "ドラゴン"];
+            enemy.name = names[Math.floor(Math.random() * names.length)];
+        }
+        updateUI();
+    }
+
+    // 画面の数値を更新
+    function updateUI() {
+        document.getElementById("atk-val").innerText = playerAtk;
+        document.getElementById("kill-val").innerText = kills;
+        document.getElementById("e-hp").innerText = enemy.hp;
+        document.getElementById("e-max").innerText = enemy.maxHp;
+        document.getElementById("e-name").innerText = enemy.name;
+    }
+
+    // ログを追加
+    function addLog(msg, isRare = false) {
+        const logBox = document.getElementById("log");
+        const div = document.createElement("div");
+        if (isRare) div.className = "rare-log";
+        div.innerText = msg;
+        logBox.prepend(div);
+    }
+</script>
 
 </body>
 </html>
