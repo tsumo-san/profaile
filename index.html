@@ -1,171 +1,249 @@
 <!DOCTYPE html>
-<html>
+<html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>40s FPS Aim Trainer</title>
+<title>Galaga Drop System</title>
 <style>
-body { margin:0; overflow:hidden; background:black; }
-#ui{
-    position:fixed;
-    top:10px;
-    left:10px;
-    color:white;
-    font-family:sans-serif;
-}
-#crosshair{
-    position:fixed;
-    top:50%;
-    left:50%;
-    width:15px;
-    height:15px;
-    margin-left:-7px;
-    margin-top:-7px;
-    border:2px solid white;
-    border-radius:50%;
-}
-input{ width:120px; }
+body{margin:0;background:black;color:white;text-align:center;font-family:sans-serif}
+canvas{background:#000;display:block;margin:auto}
 </style>
 </head>
 <body>
 
-<div id="ui">
-    スコア: <span id="score">0</span><br>
-    FPS: <span id="fps">0</span><br>
-    残り時間: <span id="time">40</span><br>
-    感度: <input type="range" id="sens" min="0.001" max="0.01" step="0.001" value="0.002">
-</div>
-<div id="crosshair"></div>
+<h2>🚀 ギャラガ改</h2>
+<p>← → 移動 / Space 攻撃 / Z 必殺</p>
+<p>
+スコア: <span id="score">0</span> |
+弾レベル: <span id="level">1</span> |
+必殺: <span id="special">0</span>
+</p>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<canvas id="game" width="600" height="500"></canvas>
 
 <script>
-let scene = new THREE.Scene();
-scene.background = new THREE.Color(0x1e1e2e);
 
-let camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-camera.position.y = 1.5;
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
 
-let renderer = new THREE.WebGLRenderer({antialias:true});
-renderer.setPixelRatio(window.devicePixelRatio);
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.shadowMap.enabled = true;
-document.body.appendChild(renderer.domElement);
-
-let light = new THREE.DirectionalLight(0xffffff,1);
-light.position.set(5,10,5);
-light.castShadow = true;
-scene.add(light);
-scene.add(new THREE.AmbientLight(0x404040));
-
-let ground = new THREE.Mesh(
-    new THREE.PlaneGeometry(200,200),
-    new THREE.MeshStandardMaterial({color:0x333333})
-);
-ground.rotation.x = -Math.PI/2;
-ground.receiveShadow = true;
-scene.add(ground);
-
-let targets=[];
-function spawnTarget(){
-    if(!gameActive) return;
-    let mesh = new THREE.Mesh(
-        new THREE.SphereGeometry(0.5,32,32),
-        new THREE.MeshStandardMaterial({color:0xff4444})
-    );
-    mesh.position.set(
-        (Math.random()-0.5)*30,
-        Math.random()*5+1,
-        -Math.random()*30
-    );
-    mesh.castShadow = true;
-    scene.add(mesh);
-    targets.push(mesh);
-}
-spawnTarget();
-
-let gun = new THREE.Group();
-let body = new THREE.Mesh(
-    new THREE.BoxGeometry(0.4,0.25,1),
-    new THREE.MeshStandardMaterial({color:0x111111})
-);
-body.position.set(0.3,-0.3,-1);
-gun.add(body);
-camera.add(gun);
-scene.add(camera);
-
-let pitch=0, yaw=0;
-let sensitivity = 0.002;
-
-document.getElementById("sens").addEventListener("input",e=>{
-    sensitivity = parseFloat(e.target.value);
-});
-
-document.body.addEventListener("click",()=>{
-    document.body.requestPointerLock();
-});
-
-document.addEventListener("mousemove",e=>{
-    if(document.pointerLockElement===document.body && gameActive){
-        yaw -= e.movementX * sensitivity;
-        pitch -= e.movementY * sensitivity;
-        pitch = Math.max(-Math.PI/2, Math.min(Math.PI/2, pitch));
-        camera.rotation.set(pitch,yaw,0);
-    }
-});
-
-let raycaster = new THREE.Raycaster();
 let score=0;
-let gameActive = true;
+let bulletLevel=1;
+let special=0;
 
-window.addEventListener("mousedown",()=>{
-    if(!gameActive) return;
-    raycaster.setFromCamera(new THREE.Vector2(0,0),camera);
-    let hit = raycaster.intersectObjects(targets);
-    if(hit.length>0){
-        scene.remove(hit[0].object);
-        targets.splice(targets.indexOf(hit[0].object),1);
-        score++;
-        document.getElementById("score").textContent=score;
-        spawnTarget();
-    }
-});
+let player={x:280,y:450,w:40,h:20,speed:6};
 
-// FPS
-let lastTime = performance.now();
-let frames = 0;
+let bullets=[];
+let enemyBullets=[];
+let enemies=[];
+let items=[];
 
-function animate(){
-    requestAnimationFrame(animate);
-    frames++;
-    let now = performance.now();
-    if(now - lastTime >= 1000){
-        document.getElementById("fps").textContent = frames;
-        frames = 0;
-        lastTime = now;
-    }
-    renderer.render(scene,camera);
+let enemyDir=1;
+
+for(let i=0;i<8;i++){
+for(let j=0;j<3;j++){
+enemies.push({x:60+i*60,y:40+j*40,w:30,h:20,alive:true});
 }
-animate();
+}
 
-// 🔥 40秒タイマー
-let timeLeft = 40;
-let timer = setInterval(()=>{
-    if(!gameActive) return;
-    timeLeft--;
-    document.getElementById("time").textContent = timeLeft;
-    if(timeLeft <= 0){
-        gameActive = false;
-        clearInterval(timer);
-        document.exitPointerLock();
-        alert("終了！最終スコア: " + score);
-    }
-},1000);
+let keys={};
 
-window.addEventListener("resize",()=>{
-    camera.aspect = window.innerWidth/window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth,window.innerHeight);
+document.addEventListener("keydown",e=>{
+keys[e.code]=true;
+
+if(e.code==="Space")shoot();
+if(e.code==="KeyZ")specialAttack();
 });
+
+document.addEventListener("keyup",e=>keys[e.code]=false);
+
+function shoot(){
+
+if(bulletLevel===1)
+bullets.push({x:player.x+18,y:player.y});
+
+if(bulletLevel===2){
+bullets.push({x:player.x+5,y:player.y});
+bullets.push({x:player.x+30,y:player.y});
+}
+
+if(bulletLevel>=3){
+bullets.push({x:player.x,y:player.y});
+bullets.push({x:player.x+18,y:player.y});
+bullets.push({x:player.x+36,y:player.y});
+}
+
+}
+
+function specialAttack(){
+
+if(special<=0)return;
+
+enemies.forEach(e=>e.alive=false);
+special--;
+
+}
+
+function enemyShoot(){
+
+let alive=enemies.filter(e=>e.alive);
+if(alive.length===0)return;
+
+let shooter=alive[Math.floor(Math.random()*alive.length)];
+
+enemyBullets.push({x:shooter.x+15,y:shooter.y});
+
+}
+
+setInterval(enemyShoot,1000);
+
+function spawnItem(x,y){
+
+let r=Math.random();
+
+if(r<0.05){
+
+items.push({x:x,y:y,type:"special"});
+
+}else if(r<0.25){
+
+items.push({x:x,y:y,type:"bullet"});
+
+}
+
+}
+
+function update(){
+
+if(keys["ArrowLeft"])player.x-=player.speed;
+if(keys["ArrowRight"])player.x+=player.speed;
+
+bullets.forEach(b=>b.y-=8);
+enemyBullets.forEach(b=>b.y+=4);
+items.forEach(i=>i.y+=2);
+
+let edge=false;
+
+enemies.forEach(e=>{
+
+if(!e.alive)return;
+
+e.x+=enemyDir*1.5;
+
+if(e.x<0||e.x>560)edge=true;
+
+});
+
+if(edge){
+
+enemyDir*=-1;
+
+enemies.forEach(e=>e.y+=20);
+
+}
+
+bullets.forEach(b=>{
+
+enemies.forEach(e=>{
+
+if(!e.alive)return;
+
+if(
+b.x<e.x+e.w &&
+b.x>e.x &&
+b.y<e.y+e.h &&
+b.y>e.y
+){
+
+e.alive=false;
+score+=10;
+
+spawnItem(e.x,e.y);
+
+}
+
+});
+
+});
+
+enemyBullets.forEach(b=>{
+
+if(
+b.x<player.x+player.w &&
+b.x>player.x &&
+b.y<player.y+player.h &&
+b.y>player.y
+){
+
+alert("ゲームオーバー\nスコア:"+score);
+location.reload();
+
+}
+
+});
+
+items.forEach(i=>{
+
+if(
+i.x<player.x+player.w &&
+i.x>player.x &&
+i.y<player.y+player.h &&
+i.y>player.y
+){
+
+if(i.type==="bullet")bulletLevel++;
+
+if(i.type==="special")special++;
+
+i.y=600;
+
+}
+
+});
+
+document.getElementById("score").textContent=score;
+document.getElementById("level").textContent=bulletLevel;
+document.getElementById("special").textContent=special;
+
+}
+
+function draw(){
+
+ctx.clearRect(0,0,600,500);
+
+ctx.fillStyle="cyan";
+ctx.fillRect(player.x,player.y,player.w,player.h);
+
+ctx.fillStyle="yellow";
+bullets.forEach(b=>ctx.fillRect(b.x,b.y,4,10));
+
+ctx.fillStyle="orange";
+enemyBullets.forEach(b=>ctx.fillRect(b.x,b.y,4,10));
+
+ctx.fillStyle="red";
+enemies.forEach(e=>{
+if(e.alive)ctx.fillRect(e.x,e.y,e.w,e.h);
+});
+
+items.forEach(i=>{
+
+if(i.type==="bullet")ctx.fillStyle="lime";
+if(i.type==="special")ctx.fillStyle="purple";
+
+ctx.fillRect(i.x,i.y,10,10);
+
+});
+
+}
+
+function gameLoop(){
+
+update();
+draw();
+requestAnimationFrame(gameLoop);
+
+}
+
+gameLoop();
+
 </script>
 
 </body>
